@@ -29,7 +29,7 @@ DenseLayer::DenseLayer(int input_size, int output_size) : Layer::Layer(input_siz
 MatrixXd DenseLayer::forward_propagate(MatrixXd input_to_layer){
     inputs = input_to_layer;
     outputs = weights * inputs + biases;
-    //outputs = outputs.unaryExpr(&sigmoid);
+    outputs = outputs.unaryExpr(&tanh);
     return outputs;
 }
 
@@ -39,12 +39,8 @@ MatrixXd DenseLayer::apply_activation(MatrixXd* apply_on){
 
 MatrixXd DenseLayer::backward_propagate(MatrixXd output_gradient, double learning_rate){
     MatrixXd weights_gradient = output_gradient * inputs.transpose();
-    //cout << "weights before updating \n" << weights << '\n';
     weights -= learning_rate * weights_gradient;
-    //cout << "weights after updating \n" << weights << '\n';
-    //cout << "Biases before updating \n" << biases << '\n';
     biases -= learning_rate * output_gradient;
-    //cout << "Biases after updating \n" << biases << '\n';
     MatrixXd to_return = (weights.transpose()) * output_gradient;
     return to_return;
 }
@@ -81,15 +77,14 @@ void Network::train(std::vector<std::vector<double>> training_data, int epochs=1
             std::vector<double> label = one_hot_encode(label_i, num_classes);
             MatrixXd e_label = Map<MatrixXd>(label.data(), label.size(), 1);
             MatrixXd input = Map<MatrixXd>(data_point.data(), data_point.size(), 1);
-            //cout << "Input is\n" << input << '\n';
+            //std::cout << "Input is\n" << input << '\n';
             for (int j = 0; j < network.size(); j++){
                 input = network[j]->forward_propagate(input);
             }
-
-            //cout << "The final layer is\n" << network[network.size() - 1]->outputs << '\n';
+            //std::cout << "The final layer is\n" << network[network.size() - 1]->outputs << '\n';
 
             del_error = (2 * (network[network.size() - 1]->outputs - e_label)) / label.size();
-            //cout << "Error matrix:\n" << del_error << '\n';
+            //std::cout << "Error matrix:\n" << del_error << '\n';
 
             mean_error += mse(network[network.size() - 1]->outputs, e_label);
 
@@ -116,7 +111,7 @@ int Network::predict(std::vector<double> data_point, int num_classes, int label_
     }
     int to_return_i = 0;
     double dum = 0;
-    //cout << network[network.size() - 1]->outputs << '\n';
+    //std::cout << network[network.size() - 1]->outputs << '\n';
     for (int i = 0; i < num_classes; i++){
         if (network[network.size() - 1]->outputs.coeff(i, 0) > dum){               
             dum = network[network.size() - 1]->outputs.coeff(i, 0);
@@ -128,6 +123,10 @@ int Network::predict(std::vector<double> data_point, int num_classes, int label_
 
 double Network::mse(MatrixXd predicted, MatrixXd actual){
     return ((actual - predicted).array().square()).sum() / actual.size();
+}
+
+double DenseLayer::sigmoid(double x){
+    return 1 / (1 + exp(-x));
 }
 
 DenseLayer* Network::get_addr(int idx){
